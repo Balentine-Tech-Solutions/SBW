@@ -1,0 +1,44 @@
+{
+  "_description": "SBW CLI Tool Configuration Example",
+  "_version": "1.0",
+  
+  "crypto": {
+    "_note": "Crypto settings will be provided in EN-1.0 specification",
+    "algorithm": "AES-GCM",
+    "key": "<PLACEHOLDER_WILL_BE_PROVIDED>",
+    "tag_length": 16,
+    "nonce_length": 12
+  },
+  
+  "compression": {
+    "_note": "Compression algorithm used by firmware",
+    "algorithm": "lz4",
+    "level": "default"
+  },
+  
+  "tlv": {
+    "_note": "TLV format settings from TL-1.0 specification", 
+    "version": "1.0",
+    "byte_order": "little",
+    "alignment": 4
+  },
+  
+  "export": {
+    "timestamp_format": "%Y-%m-%d %H:%M:%S.%f",
+    "csv_delimiter": ",",
+    "json_indent": 2
+  },
+  
+  "visualization": {
+    "figure_size": [12, 8],
+    "dpi": 300,
+    "style": "default"
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_logging": false,
+    "log_file": "sbw_cli.log"
+  }
+}

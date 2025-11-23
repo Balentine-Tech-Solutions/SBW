@@ -1,0 +1,28 @@
+# SBW CLI Tool Requirements
+# SBWv1.i2 Mark I Prototype
+
+# Cryptography for AES-GCM support
+cryptography>=41.0.0
+
+# Compression support
+lz4>=4.3.0
+
+# Data processing and analysis
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# CLI enhancement (optional but recommended)
+click>=8.1.0
+
+# Development and testing dependencies (optional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+
+# Logging and configuration
+pyyaml>=6.0
+colorama>=0.4.6  # For cross-platform colored terminal output
