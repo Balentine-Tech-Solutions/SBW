@@ -210,6 +210,39 @@ This Mark I prototype focuses specifically on:
 
 This is a focused prototype for the SBW platform development. Contact the development team for contribution guidelines.
 
+## Security & Compliance Requirements
+
+### Defense Weapons Development Context
+
+This SBW CLI tool is designed for **defense weapons systems** and must comply with strict security and regulatory requirements:
+
+#### Security Clearance Considerations
+- Tool may require security clearance for full project access
+- Classified data handling procedures must be implemented
+- Personnel working on the project may need appropriate clearances
+- Code review and approval processes for classified environments
+
+#### ITAR (International Traffic in Arms Regulations)
+- Export control compliance for defense-related technology
+- Restrictions on international collaboration and code sharing
+- Controlled access to technical specifications and implementations
+- Documentation and audit trails for export control compliance
+
+#### Code Security & Audit Requirements
+- Secure coding practices for defense applications
+- Audit trails for all data processing and access
+- Classification handling for different security levels
+- Secure storage and transmission of log files and processed data
+- Version control and change management for controlled environments
+
+#### Data Protection
+- AES-GCM encryption ensures defense-grade data security
+- Secure key management and distribution
+- Protected handling of weapons system telemetry data
+- Compliance with DoD security standards and guidelines
+
+*Note: All security implementations must be reviewed and approved by appropriate security personnel before deployment in classified environments.*
+
 ## Technical Specifications
 
 The tool implements the following specifications:

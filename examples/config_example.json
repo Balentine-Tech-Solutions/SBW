@@ -1,6 +1,20 @@
 {
-  "_description": "SBW CLI Tool Configuration Example",
+  "_description": "SBW CLI Tool Configuration Example - Defense Weapons Development",
   "_version": "1.0",
+  "_security_notice": "This configuration may contain ITAR-controlled information. Handle according to export control regulations.",
+  
+  "security": {
+    "_note": "Security settings for defense applications",
+    "classification_level": "UNCLASSIFIED",
+    "itar_controlled": true,
+    "audit_logging": true,
+    "secure_key_storage": true,
+    "export_controls": {
+      "enabled": true,
+      "restricted_countries": [],
+      "approval_required": true
+    }
+  },
   
   "crypto": {
     "_note": "Crypto settings will be provided in EN-1.0 specification",
