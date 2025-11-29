@@ -186,82 +186,114 @@ class TLVParser:
             return None
     
     def _parse_imu_data(self, payload: bytes) -> Dict[str, Any]:
-        """Parse IMU data payload."""
-        # TODO: Implement actual IMU data format from TL-1.0 spec
-        # Placeholder: 6 float32 values (accel_xyz + gyro_xyz)
+        """Parse IMU data payload (TL-1.0 spec)."""
+        # IMU Format: 6 float32 values (accel_xyz + gyro_xyz)
         
         if len(payload) < 24:  # 6 * 4 bytes
-            raise ValueError(f"IMU payload too short: {len(payload)} bytes")
+            raise ValueError(f"IMU payload too short: {len(payload)} bytes (expected 24+)")
             
-        endian = '<' if self.byte_order == 'little' else '>'
-        values = struct.unpack(f'{endian}6f', payload[:24])
-        
-        return {
-            'accel_x': values[0],
-            'accel_y': values[1], 
-            'accel_z': values[2],
-            'gyro_x': values[3],
-            'gyro_y': values[4],
-            'gyro_z': values[5]
-        }
+        try:
+            endian = '<' if self.byte_order == 'little' else '>'
+            values = struct.unpack(f'{endian}6f', payload[:24])
+            
+            return {
+                'accel_x': float(values[0]),
+                'accel_y': float(values[1]), 
+                'accel_z': float(values[2]),
+                'gyro_x': float(values[3]),
+                'gyro_y': float(values[4]),
+                'gyro_z': float(values[5])
+            }
+        except struct.error as e:
+            raise ValueError(f"Failed to unpack IMU data: {e}")
     
     def _parse_temperature_data(self, payload: bytes) -> Dict[str, Any]:
-        """Parse temperature data payload."""
-        # TODO: Implement actual temperature data format from TL-1.0 spec
-        # Placeholder: float32 temperature + uint32 sensor_id
+        """Parse temperature data payload (TL-1.0 spec)."""
+        # Temperature Format: float32 temperature + uint32 sensor_id
         
         if len(payload) < 8:
-            raise ValueError(f"Temperature payload too short: {len(payload)} bytes")
+            raise ValueError(f"Temperature payload too short: {len(payload)} bytes (expected 8+)")
             
-        endian = '<' if self.byte_order == 'little' else '>'
-        temperature, sensor_id = struct.unpack(f'{endian}fI', payload[:8])
-        
-        return {
-            'temperature': temperature,
-            'sensor_id': sensor_id
-        }
+        try:
+            endian = '<' if self.byte_order == 'little' else '>'
+            temperature, sensor_id = struct.unpack(f'{endian}fI', payload[:8])
+            
+            return {
+                'temperature': float(temperature),
+                'sensor_id': int(sensor_id)
+            }
+        except struct.error as e:
+            raise ValueError(f"Failed to unpack temperature data: {e}")
     
     def _parse_health_data(self, payload: bytes) -> Dict[str, Any]:
-        """Parse health data payload."""
-        # TODO: Implement actual health data format from TL-1.0 spec
-        # Placeholder: battery_voltage(f) + cpu_temp(f) + memory_usage(I) + error_code(I)
+        """Parse health data payload (TL-1.0 spec)."""
+        # Health Format: battery_voltage(f) + cpu_temp(f) + memory_usage(I) + error_code(I)
         
         if len(payload) < 16:
-            raise ValueError(f"Health payload too short: {len(payload)} bytes")
+            raise ValueError(f"Health payload too short: {len(payload)} bytes (expected 16+)")
             
-        endian = '<' if self.byte_order == 'little' else '>'
-        battery_voltage, cpu_temperature, memory_usage, error_code = struct.unpack(
-            f'{endian}ffII', payload[:16]
-        )
-        
-        return {
-            'battery_voltage': battery_voltage,
-            'cpu_temperature': cpu_temperature,
-            'memory_usage': memory_usage,
-            'error_code': error_code
-        }
+        try:
+            endian = '<' if self.byte_order == 'little' else '>'
+            battery_voltage, cpu_temperature, memory_usage, error_code = struct.unpack(
+                f'{endian}ffII', payload[:16]
+            )
+            
+            return {
+                'battery_voltage': float(battery_voltage),
+                'cpu_temperature': float(cpu_temperature),
+                'memory_usage': int(memory_usage),
+                'error_code': int(error_code)
+            }
+        except struct.error as e:
+            raise ValueError(f"Failed to unpack health data: {e}")
     
     def _parse_session_metadata(self, payload: bytes) -> Dict[str, Any]:
-        """Parse session metadata payload."""
-        # TODO: Implement actual session metadata format from TL-1.0 spec
-        return {
-            'session_id': payload[:16].hex() if len(payload) >= 16 else None,
-            'firmware_version': 'Unknown',
-            'raw_metadata': payload.hex()
-        }
+        """Parse session metadata payload (TL-1.0 spec)."""
+        # Session Metadata Format: session_id(16 bytes) + firmware_version(4 bytes) + reserved
+        
+        result = {}
+        
+        try:
+            if len(payload) >= 16:
+                result['session_id'] = payload[:16].hex().upper()
+            else:
+                result['session_id'] = None
+                
+            if len(payload) >= 20:
+                import struct
+                endian = '<' if self.byte_order == 'little' else '>'
+                fw_version = struct.unpack(f'{endian}I', payload[16:20])[0]
+                result['firmware_version'] = f"0x{fw_version:08X}"
+            else:
+                result['firmware_version'] = 'Unknown'
+                
+            return result
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing session metadata: {e}")
+            return {
+                'session_id': None,
+                'firmware_version': 'Unknown',
+                'raw_metadata': payload.hex()
+            }
     
     def _parse_timestamp(self, payload: bytes) -> Dict[str, Any]:
-        """Parse timestamp payload."""
-        # TODO: Implement actual timestamp format from TL-1.0 spec
-        # Placeholder: uint64 Unix timestamp microseconds
+        """Parse timestamp payload (TL-1.0 spec)."""
+        # Timestamp Format: uint64 Unix timestamp microseconds
         
         if len(payload) < 8:
-            raise ValueError(f"Timestamp payload too short: {len(payload)} bytes")
+            raise ValueError(f"Timestamp payload too short: {len(payload)} bytes (expected 8+)")
             
-        endian = '<' if self.byte_order == 'little' else '>'
-        timestamp_us = struct.unpack(f'{endian}Q', payload[:8])[0]
-        
-        return {
-            'timestamp': datetime.fromtimestamp(timestamp_us / 1_000_000),
-            'timestamp_us': timestamp_us
-        }
+        try:
+            endian = '<' if self.byte_order == 'little' else '>'
+            timestamp_us = struct.unpack(f'{endian}Q', payload[:8])[0]
+            
+            ts_obj = datetime.fromtimestamp(timestamp_us / 1_000_000)
+            
+            return {
+                'timestamp': ts_obj,
+                'timestamp_us': int(timestamp_us),
+                'timestamp_iso': ts_obj.isoformat()
+            }
+        except (struct.error, ValueError, OSError) as e:
+            raise ValueError(f"Failed to parse timestamp: {e}")

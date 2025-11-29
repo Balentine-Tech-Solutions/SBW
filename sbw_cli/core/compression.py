@@ -35,54 +35,56 @@ class CompressionProcessor:
             
         self.logger.debug(f"Compression processor initialized with {self.algorithm}")
     
-    def decompress_block(self, compressed_data: bytes) -> Optional[bytes]:
+    def decompress_block(self, compressed_data: bytes, block_index: int = 0) -> Optional[bytes]:
         """
         Decompress a single SBW block.
         
         Args:
             compressed_data: Compressed bytes from decryption
+            block_index: Index of block being processed (for logging)
             
         Returns:
             Decompressed bytes or None if decompression fails
         """
         try:
             if not compressed_data:
-                self.logger.error("No data to decompress")
+                self.logger.error(f"Block {block_index}: No data to decompress")
                 return None
                 
-            self.logger.debug(f"Decompressing {len(compressed_data)} bytes using {self.algorithm}")
+            self.logger.debug(f"Block {block_index}: Decompressing {len(compressed_data)} bytes using {self.algorithm}")
             
             if self.algorithm == 'lz4':
-                return self._decompress_lz4(compressed_data)
+                return self._decompress_lz4(compressed_data, block_index)
             elif self.algorithm == 'heatshrink':
-                return self._decompress_heatshrink(compressed_data)
+                return self._decompress_heatshrink(compressed_data, block_index)
             else:
-                self.logger.error(f"Unsupported compression algorithm: {self.algorithm}")
+                self.logger.error(f"Block {block_index}: Unsupported compression algorithm: {self.algorithm}")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Error during decompression: {e}")
+            self.logger.error(f"Block {block_index}: Error during decompression: {e}")
             return None
     
-    def _decompress_lz4(self, data: bytes) -> Optional[bytes]:
+    def _decompress_lz4(self, data: bytes, block_index: int = 0) -> Optional[bytes]:
         """Decompress LZ4 compressed data."""
         try:
             decompressed = lz4.frame.decompress(data)
-            self.logger.debug(f"LZ4 decompression: {len(data)} -> {len(decompressed)} bytes")
+            self.logger.debug(f"Block {block_index}: LZ4 decompression: {len(data)} -> {len(decompressed)} bytes")
             return decompressed
         except Exception as e:
-            self.logger.error(f"LZ4 decompression failed: {e}")
+            self.logger.error(f"Block {block_index}: LZ4 decompression failed: {e}")
             return None
     
-    def _decompress_heatshrink(self, data: bytes) -> Optional[bytes]:
+    def _decompress_heatshrink(self, data: bytes, block_index: int = 0) -> Optional[bytes]:
         """Decompress Heatshrink compressed data."""
         # TODO: Implement Heatshrink decompression
         # This will require either:
         # 1. Python bindings for Heatshrink library
         # 2. Custom implementation based on firmware settings
-        self.logger.warning("Heatshrink decompression not yet implemented")
+        self.logger.warning(f"Block {block_index}: Heatshrink decompression not yet implemented, returning raw data")
         
         # For now, assume data is not compressed if using Heatshrink
+        # This allows fallback behavior for uncompressed data
         return data
     
     def detect_compression(self, data: bytes) -> str:

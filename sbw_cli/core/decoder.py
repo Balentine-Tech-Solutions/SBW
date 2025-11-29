@@ -46,16 +46,31 @@ class BlockHeader:
     block_id: int
     
     @classmethod
-    def from_bytes(cls, data: bytes) -> "BlockHeader":
-        """Parse block header from raw bytes (placeholder implementation)."""
-        # TODO: Implement actual parsing based on LG-1.0 spec from Patrick
+    def from_bytes(cls, data: bytes, offset: int = 0) -> "BlockHeader":
+        """Parse block header from raw bytes (LG-1.0 spec format)."""
+        # LG-1.0 Block Format: 
+        # Offset 0-3: Raw Size (uint32 LE)
+        # Offset 4-7: Compressed Size (uint32 LE)
+        # Offset 8: Flags (uint8)
+        # Offset 9: Nonce Size (uint8)
+        # Offset 10-11: Block ID (uint16 LE)
+        
+        import struct
+        
+        if len(data) < 12:
+            raise ValueError(f"Block header too short: {len(data)} < 12 bytes")
+        
+        raw_size, comp_size, flags, nonce_size, block_id = struct.unpack(
+            '<IIBHI', data[:12]
+        )
+        
         return cls(
-            offset=0,
-            raw_size=len(data),
-            compressed_size=len(data),
-            flags=0,
-            nonce_size=12,
-            block_id=0
+            offset=offset,
+            raw_size=raw_size,
+            compressed_size=comp_size,
+            flags=flags,
+            nonce_size=nonce_size,
+            block_id=block_id
         )
 
 
@@ -122,13 +137,13 @@ class SBWDecoder:
                     self.logger.debug(f"Processing block {i+1}/{len(blocks)}")
                     
                     # Decrypt the block
-                    decrypted_data = self.crypto_processor.decrypt_block(block)
+                    decrypted_data = self.crypto_processor.decrypt_block(block, block_index=i)
                     if not decrypted_data:
                         result.errors.append(f"Failed to decrypt block {i+1}")
                         continue
                         
                     # Decompress the block
-                    decompressed_data = self.compression_processor.decompress_block(decrypted_data)
+                    decompressed_data = self.compression_processor.decompress_block(decrypted_data, block_index=i)
                     if not decompressed_data:
                         result.errors.append(f"Failed to decompress block {i+1}")
                         continue
@@ -191,23 +206,50 @@ class SBWDecoder:
             
     def _parse_blocks(self, data: bytes) -> List[Dict[str, Any]]:
         """
-        Parse blocks from raw SBW file data.
-        
-        This is a placeholder implementation that will be replaced
-        with actual block parsing based on the LG-1.0 specification.
+        Parse blocks from raw SBW file data following LG-1.0 specification.
+        Each block consists of: Header (12 bytes) + Nonce + Encrypted/Compressed Data + Tag
         """
         blocks = []
+        offset = 0
         
-        # TODO: Implement actual block parsing based on LG-1.0 spec
-        # For now, create a single block with all data
-        if data:
-            header = BlockHeader.from_bytes(data)
-            blocks.append({
-                "header": header,
-                "data": data,
-                "encrypted": True,
-                "compressed": True
-            })
+        try:
+            while offset < len(data):
+                # Need at least header
+                if offset + 12 > len(data):
+                    if offset < len(data):
+                        self.logger.warning(f"Incomplete block header at offset {offset}, skipping")
+                    break
+                
+                # Parse block header
+                try:
+                    header = BlockHeader.from_bytes(data[offset:], offset)
+                except ValueError as e:
+                    self.logger.warning(f"Invalid block header at offset {offset}: {e}")
+                    break
+                
+                # Calculate total block size: header + nonce + encrypted_data + tag(16)
+                block_start = offset + 12
+                block_data_size = header.compressed_size + header.nonce_size + 16  # 16 = GCM tag
+                block_end = block_start + block_data_size
+                
+                if block_end > len(data):
+                    self.logger.warning(f"Block {header.block_id} extends beyond file, truncating")
+                    block_end = len(data)
+                
+                block_payload = data[block_start:block_end]
+                
+                blocks.append({
+                    "header": header,
+                    "payload": block_payload,
+                    "encrypted": True,
+                    "compressed": bool(header.flags & 0x01)
+                })
+                
+                self.logger.debug(f"Parsed block {header.block_id}: {block_data_size} bytes")
+                offset = block_end
+                
+        except Exception as e:
+            self.logger.error(f"Error parsing blocks: {e}")
             
         self.logger.debug(f"Parsed {len(blocks)} blocks from file")
         return blocks

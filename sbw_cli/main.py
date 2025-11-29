@@ -29,6 +29,8 @@ Examples:
   sbw-cli decode input.sbw --out decoded_data/
   sbw-cli decode input.sbw --out results/ --csv --json --plots
   sbw-cli decode input.sbw --out analysis/ --verbose
+  sbw-cli info input.sbw
+  sbw-cli validate input.sbw
         """
     )
     
@@ -77,6 +79,38 @@ Examples:
         help="Path to configuration file"
     )
     
+    # Info command
+    info_parser = subparsers.add_parser(
+        "info",
+        help="Display information about an SBW file"
+    )
+    info_parser.add_argument(
+        "input_file",
+        type=Path,
+        help="Path to the SBW log file (.sbw)"
+    )
+    info_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose output"
+    )
+    
+    # Validate command
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="Validate integrity of an SBW file"
+    )
+    validate_parser.add_argument(
+        "input_file",
+        type=Path,
+        help="Path to the SBW log file (.sbw)"
+    )
+    validate_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose output"
+    )
+    
     return parser
 
 
@@ -104,6 +138,116 @@ def create_output_directory(output_dir: Path) -> bool:
     except Exception as e:
         logging.error(f"Failed to create output directory {output_dir}: {e}")
         return False
+
+
+def info_command(args) -> int:
+    """Execute the info command to display file information."""
+    try:
+        # Validate input file
+        if not validate_input_file(args.input_file):
+            return 1
+        
+        file_stat = args.input_file.stat()
+        
+        logging.info(f"=== SBW File Information ===")
+        logging.info(f"File: {args.input_file}")
+        logging.info(f"Size: {file_stat.st_size:,} bytes")
+        logging.info(f"Modified: {Path(args.input_file).stat().st_mtime}")
+        
+        # Read and analyze file structure
+        with open(args.input_file, 'rb') as f:
+            raw_data = f.read()
+            
+        # Count blocks
+        from sbw_cli.core.decoder import BlockHeader
+        block_count = 0
+        offset = 0
+        
+        while offset < len(raw_data) - 12:
+            try:
+                header = BlockHeader.from_bytes(raw_data[offset:], offset)
+                block_count += 1
+                offset += 12 + header.nonce_size + header.compressed_size + 16
+                
+                if args.verbose:
+                    logging.info(f"Block {header.block_id}: {header.compressed_size} bytes "
+                               f"(flags=0x{header.flags:02X})")
+            except:
+                break
+        
+        logging.info(f"Estimated Blocks: {block_count}")
+        logging.info(f"Analysis Complete")
+        
+        return 0
+        
+    except Exception as e:
+        logging.exception(f"Error during file info: {e}")
+        return 1
+
+
+def validate_command(args) -> int:
+    """Execute the validate command to check file integrity."""
+    try:
+        # Validate input file
+        if not validate_input_file(args.input_file):
+            return 1
+        
+        logging.info(f"Validating SBW file: {args.input_file}")
+        
+        # Check file structure
+        from sbw_cli.core.decoder import BlockHeader
+        
+        with open(args.input_file, 'rb') as f:
+            raw_data = f.read()
+        
+        valid_blocks = 0
+        invalid_blocks = 0
+        offset = 0
+        errors = []
+        
+        while offset < len(raw_data) - 12:
+            try:
+                header = BlockHeader.from_bytes(raw_data[offset:], offset)
+                
+                # Check if block extends beyond file
+                block_end = offset + 12 + header.nonce_size + header.compressed_size + 16
+                if block_end > len(raw_data):
+                    errors.append(f"Block {header.block_id}: extends beyond file")
+                    invalid_blocks += 1
+                else:
+                    valid_blocks += 1
+                    if args.verbose:
+                        logging.info(f"✓ Block {header.block_id} OK")
+                
+                offset = block_end if block_end <= len(raw_data) else len(raw_data)
+                
+            except ValueError as e:
+                errors.append(f"Block parsing error at offset {offset}: {e}")
+                invalid_blocks += 1
+                break
+            except Exception as e:
+                logging.debug(f"End of file reached at offset {offset}")
+                break
+        
+        logging.info(f"=== Validation Results ===")
+        logging.info(f"Valid Blocks: {valid_blocks}")
+        logging.info(f"Invalid Blocks: {invalid_blocks}")
+        
+        if errors:
+            logging.warning(f"Found {len(errors)} issues:")
+            for error in errors:
+                logging.warning(f"  - {error}")
+        
+        if invalid_blocks == 0:
+            logging.info("✓ File validation passed!")
+            return 0
+        else:
+            logging.error("✗ File validation failed!")
+            return 1
+            
+    except Exception as e:
+        logging.exception(f"Error during validation: {e}")
+        return 1
 
 
 def decode_command(args) -> int:
@@ -177,6 +321,10 @@ def main() -> int:
     # Execute command
     if args.command == "decode":
         return decode_command(args)
+    elif args.command == "info":
+        return info_command(args)
+    elif args.command == "validate":
+        return validate_command(args)
     else:
         logging.error(f"Unknown command: {args.command}")
         return 1
